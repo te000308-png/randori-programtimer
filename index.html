@@ -557,8 +557,8 @@ function buzz(dur, when, vol){
   o.connect(g); g.connect(actx.destination);
   o.start(t0); o.stop(t1 + 0.01);
 }
-function beepWork(){ buzz(0.70, 0, 0.5); }    // 開始の合図
-function beepRest(){ buzz(0.60, 0, 0.45); }   // 休憩の合図
+function beepWork(){ buzz(0.60, 0, 0.5); }    // 開始の合図
+function beepRest(){ buzz(0.60, 0, 0.45); }   // 休憩の合図（開始と同じ長さ）
 function beepFinish(){ buzz(2.50, 0, 0.5); }  // 終了
 
 /* ============ 設定 ============ */
