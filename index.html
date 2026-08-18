@@ -523,8 +523,8 @@ function initAudio(){
   o.start(); o.stop(actx.currentTime + 0.03);
 }
 /* デジタルタイマーのブザーはピエゾ素子。高音の共振音を、余韻なしでパツンと鳴らす */
-/* 音程は「低いド＋高いド」の1オクターブ重ね（引数は低いド側） */
-var C6 = 1046.5, C7 = 2093.0;
+/* 音程は「低いド＋高いド」の同時発音。1オクターブだと耳が1音に融合してしまうので2オクターブ離す */
+var C5 = 523.25, C6 = 1046.5;
 function octVoice(freq, t0, t1, level, dest){
   var bp = actx.createBiquadFilter();                // 共振のピークを作る
   bp.type = "bandpass"; bp.frequency.value = freq; bp.Q.value = 3;
@@ -548,21 +548,21 @@ function pip(lowHz, dur, when, vol){
   var hp = actx.createBiquadFilter();                // 低域の膨らみを削る
   hp.type = "highpass"; hp.frequency.value = lowHz * 0.6;
 
-  octVoice(lowHz, t0, t1, 0.62, hp);                 // 低いド
-  octVoice(lowHz * 2, t0, t1, 0.5, hp);              // 高いド（1オクターブ上）
+  octVoice(lowHz, t0, t1, 0.7, hp);                  // 低いド
+  octVoice(lowHz * 4, t0, t1, 0.55, hp);             // 高いド（2オクターブ上）
   hp.connect(g); g.connect(actx.destination);
 }
-function beepCount(){ pip(C6, 0.06, 0, 0.3); }                          // ピッ
-function beepWork(){                                                     // ピッピッピーッ
-  pip(C7, 0.07, 0,    0.32);
-  pip(C7, 0.07, 0.13, 0.32);
-  pip(C7, 0.30, 0.26, 0.32);
+function beepCount(){ pip(C5, 0.06, 0, 0.28); }                          // ピッ
+function beepWork(){                                                      // ピッピッピーッ
+  pip(C6, 0.07, 0,    0.3);
+  pip(C6, 0.07, 0.13, 0.3);
+  pip(C6, 0.30, 0.26, 0.3);
 }
-function beepRest(){ pip(C6, 0.07, 0, 0.3); pip(C6, 0.16, 0.13, 0.3); }  // ピッピーッ
-function beepFinish(){                                                   // ピピピピ×3
+function beepRest(){ pip(C5, 0.07, 0, 0.28); pip(C5, 0.16, 0.13, 0.28); } // ピッピーッ
+function beepFinish(){                                                    // ピピピピ×3
   for (var n = 0; n < 3; n++){
     var base = n * 0.62;
-    for (var i = 0; i < 4; i++) pip(C7, 0.075, base + i * 0.115, 0.32);
+    for (var i = 0; i < 4; i++) pip(C6, 0.075, base + i * 0.115, 0.3);
   }
 }
 
