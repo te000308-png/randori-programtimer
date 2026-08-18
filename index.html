@@ -522,23 +522,49 @@ function initAudio(){
   g.gain.value = 0.0001; o.connect(g); g.connect(actx.destination);
   o.start(); o.stop(actx.currentTime + 0.03);
 }
-function tone(freq, dur, when, vol){
+/* デジタルタイマーのブザーはピエゾ素子。高音の共振音を、余韻なしでパツンと鳴らす */
+var PIP_HZ = 2730, ALARM_HZ = 4000;
+function pip(freq, dur, when, vol){
   if (!actx || !S.sound) return;
-  when = when || 0; vol = vol || 0.28;
-  var t0 = actx.currentTime + when;
-  var o = actx.createOscillator(), g = actx.createGain();
+  when = when || 0; vol = vol || 0.3;
+  var t0 = actx.currentTime + when, t1 = t0 + dur;
+
+  // 共振のピークを作って、こもった低域を削る
+  var bp = actx.createBiquadFilter();
+  bp.type = "bandpass"; bp.frequency.value = freq; bp.Q.value = 3;
+  var hp = actx.createBiquadFilter();
+  hp.type = "highpass"; hp.frequency.value = freq * 0.6;
+
+  var g = actx.createGain();
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(vol, t0 + 0.002);   // 立ち上がりは一瞬
+  g.gain.setValueAtTime(vol, t1 - 0.004);
+  g.gain.linearRampToValueAtTime(0, t1);             // 減衰させずに切る
+
+  var o = actx.createOscillator();
   o.type = "square"; o.frequency.value = freq;
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
-  g.gain.setValueAtTime(vol, t0 + dur - 0.04);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g); g.connect(actx.destination);
-  o.start(t0); o.stop(t0 + dur + 0.02);
+  var o2 = actx.createOscillator();                  // 倍音を少し足して金属的に
+  o2.type = "square"; o2.frequency.value = freq * 2;
+  var g2 = actx.createGain(); g2.gain.value = 0.12;
+
+  o.connect(bp); bp.connect(hp); hp.connect(g);
+  o2.connect(g2); g2.connect(g);
+  g.connect(actx.destination);
+  o.start(t0); o2.start(t0); o.stop(t1 + 0.01); o2.stop(t1 + 0.01);
 }
-function beepCount(){ tone(880, 0.12, 0, 0.22); }
-function beepWork(){ tone(1320, 0.55, 0, 0.32); }
-function beepRest(){ tone(660, 0.40, 0, 0.28); }
-function beepFinish(){ tone(1046, 0.18, 0, 0.3); tone(1318, 0.18, 0.22, 0.3); tone(1568, 0.55, 0.44, 0.32); }
+function beepCount(){ pip(PIP_HZ, 0.06, 0, 0.26); }                     // ピッ
+function beepWork(){                                                     // ピッピッピーッ
+  pip(ALARM_HZ, 0.07, 0,    0.3);
+  pip(ALARM_HZ, 0.07, 0.13, 0.3);
+  pip(ALARM_HZ, 0.30, 0.26, 0.3);
+}
+function beepRest(){ pip(PIP_HZ, 0.07, 0, 0.26); pip(PIP_HZ, 0.16, 0.13, 0.26); }  // ピッピーッ
+function beepFinish(){                                                   // ピピピピ×3
+  for (var n = 0; n < 3; n++){
+    var base = n * 0.62;
+    for (var i = 0; i < 4; i++) pip(ALARM_HZ, 0.075, base + i * 0.115, 0.3);
+  }
+}
 
 /* ============ 設定 ============ */
 var S = { workMin:1, workSec:0, restSec:30, sets:10, sound:true, count:true, wake:true, ui:"" };
