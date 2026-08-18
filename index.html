@@ -522,49 +522,46 @@ function initAudio(){
   g.gain.value = 0.0001; o.connect(g); g.connect(actx.destination);
   o.start(); o.stop(actx.currentTime + 0.03);
 }
-/* デジタルタイマーのブザーはピエゾ素子。高音の共振音を、余韻なしでパツンと鳴らす */
-/* 音程は「低いド＋高いド」の同時発音。1オクターブだと耳が1音に融合してしまうので2オクターブ離す */
-var C5 = 523.25, C6 = 1046.5;
-function octVoice(freq, t0, t1, level, dest){
-  var bp = actx.createBiquadFilter();                // 共振のピークを作る
-  bp.type = "bandpass"; bp.frequency.value = freq; bp.Q.value = 3;
-  var lv = actx.createGain(); lv.gain.value = level;
-  var o = actx.createOscillator();
-  o.type = "square"; o.frequency.value = freq;
-  o.connect(bp); bp.connect(lv); lv.connect(dest);
-  o.start(t0); o.stop(t1 + 0.01);
+/* ブザーの実機録音を解析した結果、基本63.85Hzの41〜151倍音（2.6k〜9.6kHz）だけが鳴る
+   独特の倍音構成だった。その倍音表をそのまま PeriodicWave に流し込んで再現する。
+   [倍音の次数, 振幅, 位相] */
+var BUZZ_F0 = 63.85;
+var BUZZ = [[41,0.055,5.404],[43,0.189,6.047],[44,0.645,2.559],[45,0.564,5.649],
+            [46,0.047,6.035],[47,0.352,1.179],[48,0.087,4.436],[49,0.518,1.514],
+            [50,1.000,5.950],[51,0.240,1.159],[52,0.036,2.848],[53,0.126,3.220],
+            [55,0.121,4.941],[57,0.043,5.918],[59,0.026,3.588],[87,0.066,2.685],
+            [88,0.030,4.741],[95,0.043,1.032],[97,0.034,1.092],[100,0.038,0.624],
+            [101,0.041,5.012],[149,0.025,1.378],[150,0.043,4.237],[151,0.037,3.478]];
+var buzzWave = null;
+function makeBuzzWave(){
+  var N = 152, re = new Float32Array(N), im = new Float32Array(N);
+  for (var i = 0; i < BUZZ.length; i++){
+    var n = BUZZ[i][0], a = BUZZ[i][1], ph = BUZZ[i][2];
+    re[n] = a * Math.cos(ph); im[n] = a * Math.sin(ph);
+  }
+  return actx.createPeriodicWave(re, im);
 }
-function pip(lowHz, dur, when, vol){
+function buzz(dur, when, vol){
   if (!actx || !S.sound) return;
-  when = when || 0; vol = vol || 0.3;
+  when = when || 0; vol = vol || 0.5;
   var t0 = actx.currentTime + when, t1 = t0 + dur;
+  if (!buzzWave) buzzWave = makeBuzzWave();
 
   var g = actx.createGain();
   g.gain.setValueAtTime(0, t0);
-  g.gain.linearRampToValueAtTime(vol, t0 + 0.002);   // 立ち上がりは一瞬
-  g.gain.setValueAtTime(vol, t1 - 0.004);
-  g.gain.linearRampToValueAtTime(0, t1);             // 減衰させずに切る
+  g.gain.linearRampToValueAtTime(vol, t0 + 0.012);   // 実機の立ち上がりは約12ms
+  g.gain.setValueAtTime(vol, t1 - 0.03);
+  g.gain.linearRampToValueAtTime(0, t1);             // 切れ際は約30ms
 
-  var hp = actx.createBiquadFilter();                // 低域の膨らみを削る
-  hp.type = "highpass"; hp.frequency.value = lowHz * 0.6;
-
-  octVoice(lowHz, t0, t1, 0.7, hp);                  // 低いド
-  octVoice(lowHz * 4, t0, t1, 0.55, hp);             // 高いド（2オクターブ上）
-  hp.connect(g); g.connect(actx.destination);
+  var o = actx.createOscillator();
+  o.setPeriodicWave(buzzWave); o.frequency.value = BUZZ_F0;
+  o.connect(g); g.connect(actx.destination);
+  o.start(t0); o.stop(t1 + 0.01);
 }
-function beepCount(){ pip(C5, 0.06, 0, 0.28); }                          // ピッ
-function beepWork(){                                                      // ピッピッピーッ
-  pip(C6, 0.07, 0,    0.3);
-  pip(C6, 0.07, 0.13, 0.3);
-  pip(C6, 0.30, 0.26, 0.3);
-}
-function beepRest(){ pip(C5, 0.07, 0, 0.28); pip(C5, 0.16, 0.13, 0.28); } // ピッピーッ
-function beepFinish(){                                                    // ピピピピ×3
-  for (var n = 0; n < 3; n++){
-    var base = n * 0.62;
-    for (var i = 0; i < 4; i++) pip(C6, 0.075, base + i * 0.115, 0.3);
-  }
-}
+function beepCount(){ buzz(0.09, 0, 0.4); }   // カウントダウンは短く
+function beepWork(){ buzz(1.20, 0, 0.5); }    // 開始の合図
+function beepRest(){ buzz(0.60, 0, 0.45); }   // 休憩の合図
+function beepFinish(){ buzz(1.95, 0, 0.5); }  // 実機と同じ約2秒
 
 /* ============ 設定 ============ */
 var S = { workMin:1, workSec:0, restSec:30, sets:10, sound:true, count:true, wake:true, ui:"" };
