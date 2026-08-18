@@ -394,7 +394,6 @@ body.fs.hide-ctl .hint{display:block;}
 
   <div class="opts">
     <label class="opt"><input type="checkbox" id="optSound" checked>音を鳴らす</label>
-    <label class="opt"><input type="checkbox" id="optCount" checked>残り3秒からカウント音</label>
     <label class="opt"><input type="checkbox" id="optWake" checked>画面を消さない</label>
   </div>
 
@@ -558,13 +557,12 @@ function buzz(dur, when, vol){
   o.connect(g); g.connect(actx.destination);
   o.start(t0); o.stop(t1 + 0.01);
 }
-function beepCount(){ buzz(0.09, 0, 0.4); }   // カウントダウンは短く
-function beepWork(){ buzz(1.20, 0, 0.5); }    // 開始の合図
+function beepWork(){ buzz(0.70, 0, 0.5); }    // 開始の合図
 function beepRest(){ buzz(0.60, 0, 0.45); }   // 休憩の合図
-function beepFinish(){ buzz(1.95, 0, 0.5); }  // 実機と同じ約2秒
+function beepFinish(){ buzz(2.50, 0, 0.5); }  // 終了
 
 /* ============ 設定 ============ */
-var S = { workMin:1, workSec:0, restSec:30, sets:10, sound:true, count:true, wake:true, ui:"" };
+var S = { workMin:1, workSec:0, restSec:30, sets:10, sound:true, wake:true, ui:"" };
 var NUMKEYS = ["workMin","workSec","restSec","sets"];
 var LIMITS = { workMin:[0,99], workSec:[0,59], restSec:[0,3599], sets:[0,99] };
 function el(id){ return document.getElementById(id); }
@@ -590,7 +588,6 @@ function loadSettings(){
   }
   NUMKEYS.forEach(function(k){ el(k).value = S[k]; });
   el("optSound").checked = S.sound;
-  el("optCount").checked = S.count;
   el("optWake").checked  = S.wake;
   applyUiMode(S.ui);
 }
@@ -606,7 +603,6 @@ function clampNum(k, v){
 function readSettings(){
   NUMKEYS.forEach(function(k){ S[k] = clampNum(k, el(k).value); el(k).value = S[k]; });
   S.sound = el("optSound").checked;
-  S.count = el("optCount").checked;
   S.wake  = el("optWake").checked;
   saveSettings();
   updateTotal();
@@ -734,7 +730,6 @@ function tick(){
   if (sec !== lastSec){
     renderTime(sec);
     el("remainAll").textContent = fmt(totalRemainSec(remain));
-    if (S.count && lastSec >= 0 && sec <= 3 && sec >= 1) beepCount();
     lastSec = sec;
   }
   var p = phases[idx];
@@ -916,7 +911,7 @@ NUMKEYS.forEach(function(k){
   el(k).addEventListener("change", readSettings);
   el(k).addEventListener("blur", readSettings);
 });
-["optSound","optCount","optWake"].forEach(function(k){
+["optSound","optWake"].forEach(function(k){
   el(k).addEventListener("change", readSettings);
 });
 (function(){
